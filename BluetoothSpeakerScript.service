@@ -1,0 +1,12 @@
+[Unit]
+Description=Bluetooth Python Auth Agent
+After=bluetooth.service
+PartOf=bluetooth.service
+
+[Service]
+User=root
+ExecStart=/usr/bin/python3 -u /home/pi/BluetoothSpeakerScript.py
+Restart=always
+
+[Install]
+WantedBy=bluetooth.target

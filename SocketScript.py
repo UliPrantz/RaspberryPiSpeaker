@@ -1,17 +1,27 @@
 #!/usr/bin/env python3
 
+
+# This script must be run with the -u flat in python3 to avoid buffering (when running as a service) and 
+# also in the same user space as PulseAudio (e. g. systemctl --user!)
+# python3 -u SocketScript.py
+
+
 import pulsectl
 import requests
 from time import sleep, time
 
 
-TASMOTA_SOCKET_IP = "192.168.1.100"
-TURN_OFF_DELAY_SECONDS = 20
+TASMOTA_SOCKET_IP = "192.168.1.226"
+TASMOTA_SOCKET_USERNAME = "admin"
+TASMOTA_SOCKET_PASSWORD = "admin"
+TURN_OFF_DELAY_SECONDS = 10
 
 
 class SocketManager():
-    def __init__(self, socket_ip, turn_off_delay) -> None:
+    def __init__(self, socket_ip, socket_username, socket_password, turn_off_delay) -> None:
         self.SOCKET_IP = socket_ip
+        self.SOCKET_USERNAME = socket_username
+        self.SOCKET_PASSWORD = socket_password
         self.TURN_OFF_DELAY = turn_off_delay
         
         # we want to always start with the socket off
@@ -21,7 +31,7 @@ class SocketManager():
     
     
     def _turn_socket_off_initially(self) -> None:
-        for _ in range(3):
+        for _ in range(10):
             try:
                 response_status = self._turn_socket_off()
                 if response_status == 200:
@@ -29,9 +39,12 @@ class SocketManager():
                     return
                 
                 print(f"Turning socket off initially failed with status code {response_status}")
+                
             
             except Exception as e:
                 print(f"Turning socket off initially failed with error: {e}")
+            
+            sleep(10)
       
     
     def manage_socket_status(self, audio_playing: bool) -> None:
@@ -40,6 +53,7 @@ class SocketManager():
         
         # if we already have the desired socket status, do nothing
         if (audio_playing and self.current_socket_status) or (not audio_playing and not self.current_socket_status):
+            self.first_turn_off_event_time = None
             return
         
         # when audio is playing and socket is off, turn the socket on
@@ -68,14 +82,14 @@ class SocketManager():
     
     
     def _turn_socket_on(self) -> int:
-        url = f"http://{self.SOCKET_IP}/cm?cmnd=Power%20On"
+        url = f"http://{self.SOCKET_IP}/cm?user={self.SOCKET_USERNAME}&password={self.SOCKET_PASSWORD}&cmnd=Power%20On"
         response = requests.get(url, timeout=5)
             
         return response.status_code
 
 
     def _turn_socket_off(self) -> int:
-        url = f"http://{self.SOCKET_IP}/cm?cmnd=Power%20Off"
+        url = f"http://{self.SOCKET_IP}/cm?user={self.SOCKET_USERNAME}&password={self.SOCKET_PASSWORD}&cmnd=Power%20Off"
         response = requests.get(url, timeout=5)
             
         return response.status_code
@@ -115,7 +129,7 @@ def check_audio_status(pulse_instance, default_sink_index) -> bool:
 
 
 def main():
-    socket_manager = SocketManager(TASMOTA_SOCKET_IP, TURN_OFF_DELAY_SECONDS)
+    socket_manager = SocketManager(TASMOTA_SOCKET_IP, TASMOTA_SOCKET_USERNAME, TASMOTA_SOCKET_PASSWORD, TURN_OFF_DELAY_SECONDS)
     
     # outer loop to handle PulseAudio errors and other exceptions
     while True:

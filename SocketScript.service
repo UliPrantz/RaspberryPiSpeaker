@@ -1,13 +1,11 @@
 [Unit]
-Description=My Python Script Service
-After=network.target
+Description=Python Socket Script Service
+Wants=network-online.target
+After=network-online.target
 
 [Service]
-ExecStart=/usr/bin/python3 /home/pi/my_script.py
-WorkingDirectory=/home/pi/
-StandardOutput=inherit
-StandardError=inherit
+ExecStart=/usr/bin/python3 -u /home/pi/SocketScript.py
 Restart=always
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=default.target
